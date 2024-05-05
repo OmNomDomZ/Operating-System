@@ -1,0 +1,17 @@
+all : hello
+
+hello: libhello.so main.o
+	gcc -o main main.o -L. -lhello
+
+libhello.so: hello.o
+	gcc -shared -fPIC -o libhello.so hello.o
+	export LD_LIBRARY_PATH=./
+
+hello.o : hello.c
+	gcc -c hello.c -o hello.o
+
+main.o: main.c
+	gcc -c -o main.o main.c
+
+clean:
+	rm -f *.so *.o main
