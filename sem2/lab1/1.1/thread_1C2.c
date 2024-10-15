@@ -8,22 +8,19 @@
 #include <sys/syscall.h>
 
 // Глобальная переменная
-int global_var = 100;
+int global_var = 1;
 
-// Статическая переменная
-static int static_var = 200;
 
 void *mythread(void *arg) {
     // Локальная переменная
-    int local_var = 300;
+    int local_var = 2;
 
     // Локальная статическая переменная
-    static int local_static_var = 400;
+    static int local_static_var = 3;
 
     // Локальная константная переменная
-    const int local_const_var = 500;
+    const int local_const_var = 4;
 
-    // Вывод идентификаторов
     pthread_t self = pthread_self();
     printf("mythread [%d %d %d %ld]: Hello from mythread!\n", 
            getpid(), getppid(), gettid(), self);
@@ -31,10 +28,9 @@ void *mythread(void *arg) {
     // Вывод адресов переменных
     printf("Addresses in thread [%ld]:\n", self);
     printf("Global variable address: %p\n", (void*)&global_var);
-    printf("Static variable address: %p\n", (void*)&static_var);
     printf("Local variable address: %p\n", (void*)&local_var);
     printf("Local static variable address: %p\n", (void*)&local_static_var);
-    printf("Local const variable address: %p\n\n", (void*)&local_const_var);
+    printf("Local const variable address: %p\n", (void*)&local_const_var);
 
     return NULL;
 }
