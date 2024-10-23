@@ -4,9 +4,9 @@
 #include <unistd.h>
 
 void* thread_function(void* arg) {
-    pthread_t tid = pthread_self();  // Получаем идентификатор потока
-    printf("Отсоединенный поток (через атрибут) с ID: %lu\n", (unsigned long)tid);
-    pthread_exit(NULL);  // Завершаем поток
+    pthread_t tid = pthread_self();  
+    printf("Отсоединенный поток с ID: %lu\n", (unsigned long)tid);
+    pthread_exit(NULL);  
 }
 
 int main() {
@@ -26,8 +26,6 @@ int main() {
             fprintf(stderr, "Ошибка при создании потока.\n");
             exit(EXIT_FAILURE);
         }
-
-        // Основной поток не ждет завершения дочернего потока
     }
 
     // Уничтожаем атрибуты потока

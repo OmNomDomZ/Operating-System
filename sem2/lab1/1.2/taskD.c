@@ -4,9 +4,9 @@
 #include <unistd.h>
 
 void* thread_function(void* arg) {
-    pthread_t tid = pthread_self();  // Получаем идентификатор потока
+    pthread_t tid = pthread_self();  
     printf("Поток с ID: %lu\n", (unsigned long)tid);
-    pthread_exit(NULL);  // Завершаем поток
+    pthread_exit(NULL);
 }
 
 int main() {

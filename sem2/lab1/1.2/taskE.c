@@ -4,10 +4,10 @@
 #include <unistd.h>
 
 void* thread_function(void* arg) {
-    pthread_detach(pthread_self());  // Отсоединяем поток
-    pthread_t tid = pthread_self();  // Получаем идентификатор потока
+    pthread_detach(pthread_self());  
+    pthread_t tid = pthread_self();  
     printf("Отсоединенный поток с ID: %lu\n", (unsigned long)tid);
-    pthread_exit(NULL);  // Завершаем поток
+    pthread_exit(NULL);  
 }
 
 int main() {
@@ -21,10 +21,6 @@ int main() {
             fprintf(stderr, "Ошибка при создании потока.\n");
             exit(EXIT_FAILURE);
         }
-
-        // Удаляем вызов pthread_join(), так как поток отсоединен
-        // Теперь основной поток не ждет завершения дочернего потока
-        
     }
 
     return 0;
