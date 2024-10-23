@@ -2,13 +2,11 @@
 #include <pthread.h>
 #include <unistd.h>
 
-// Поточная функция
 void* increment_counter(void* arg) {
     int *counter = (int*)arg;
-    // Бесконечный цикл увеличения счетчика
     while (1) {
         (*counter)++;
-        // Явная точка отмены, позволяющая потоку завершиться
+        // Явная точка отмены
         pthread_testcancel();  
     }
     return NULL;
@@ -24,14 +22,11 @@ int main() {
         return 1;
     }
 
-    // Даем потоку поработать несколько секунд
     sleep(2);
 
-    // Останавливаем поток с помощью pthread_cancel()
     printf("Основной поток: отправка команды для остановки дочернего потока...\n");
     pthread_cancel(thread);
 
-    // Ожидаем завершения потока
     if (pthread_join(thread, NULL) != 0) {
         perror("Не удалось завершить поток");
         return 1;
