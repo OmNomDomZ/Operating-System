@@ -64,8 +64,14 @@ void *thread3(void *arg) {
 
 int main() {
     pthread_t tid1, tid2, tid3;
+    sigset_t mask;
 
     printf("Main thread PID: %d\n", getpid());
+
+    // блокируем SIGQUIT в main потоке
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGQUIT);
+    pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
     // Создаём потоки
     pthread_create(&tid1, NULL, thread1, NULL);
@@ -76,10 +82,10 @@ int main() {
     sleep(2);
 
     // Отправляем SIGINT второму потоку
-    pthread_kill(tid2, SIGINT);  
+    // pthread_kill(tid2, SIGINT);  
     sleep(1);
     // Отправляем SIGQUIT третьему потоку
-    pthread_kill(tid3, SIGQUIT);  
+    // pthread_kill(tid3, SIGQUIT);  
 
     pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
