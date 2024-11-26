@@ -32,6 +32,8 @@ void *mythread(void *arg) {
     printf("Local static variable address: %p\n", (void*)&local_static_var);
     printf("Local const variable address: %p\n", (void*)&local_const_var);
 
+    sleep(100);
+    
     return NULL;
 }
 

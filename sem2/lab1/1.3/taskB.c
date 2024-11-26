@@ -36,7 +36,7 @@ int main() {
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);  
 
-    int err = pthread_create(&thread, &attr, mythread, (void *)data);
+    int err = pthread_create(&thread, &attr, mythread, data);
     if (err != 0) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         free(data); 
