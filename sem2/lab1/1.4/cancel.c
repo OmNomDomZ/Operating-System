@@ -1,16 +1,20 @@
 // структура потока
 typedef struct {
-    int cancel_requested; // флаг отмены
+    int cancel_requested; // флаг запроса на отмену
     int cancel_enabled;   // разрешена ли отмена
-    int cancel_type;      // тип отмены
+    int cancel_type;      // тип отмены (отложенная или асинхронная)
     ...
 } pthread_t;
 
 // deferred
 int pthread_cancel(pthread_t thread) {
     // становим флаг отмены
-    thread->cancel_requested = 1; 
+    thread->cancel_requested = 1;
     if (thread->cancel_type == PTHREAD_CANCEL_ASYNCHRONOUS) {
+
+        /* если тип отмены DEFERRED, сигнал не отправляется,
+         и поток должен самостоятельно проверить запрос на отмену*/
+
         pthread_kill(thread, SIGCANCEL);
     }
     return 0;
@@ -30,6 +34,9 @@ void pthread_testcancel() {
 int pthread_cancel(pthread_t thread) {
     thread->cancel_requested = 1;
     if (thread->cancel_type == PTHREAD_CANCEL_ASYNCHRONOUS) {
+
+        // если тип отмены ASYNCHRONOUS, отправляется сигнал SIGCANCEL
+        
         pthread_kill(thread, SIGCANCEL); 
     }
     return 0;

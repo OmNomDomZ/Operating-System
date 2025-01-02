@@ -4,28 +4,19 @@
 #include <unistd.h>
 #include <string.h>
 
-#define _pthread_cleanup_push(routine, arg) do { \
-    void (*__cleanup_routine)(void *) = (routine); \
-    void *__cleanup_arg = (arg);
+// #define _pthread_cleanup_push(routine, arg) do { \
+//     void (*__cleanup_routine)(void *) = (routine); \
+//     void *__cleanup_arg = (arg);
 
-#define _pthread_cleanup_pop(execute) \
-    if (execute) __cleanup_routine(__cleanup_arg); \
-} while (0)
+// #define _pthread_cleanup_pop(execute) \
+//     if (execute) __cleanup_routine(__cleanup_arg); \
+// } while (0)
 
 
 void cleanup(void* arg) {
     printf("Освобождение памяти: %s\n", (char*)arg);
     free(arg);
 }
-
-void cancel() {
-    
-}
-
-void test_cancel() {
-
-}
-
 
 void* print_hello(void* arg) {
     char* message = (char*)malloc(20 * sizeof(char));
@@ -35,14 +26,14 @@ void* print_hello(void* arg) {
     }
     strcpy(message, "hello world");
 
-    _pthread_cleanup_push(cleanup, message);
+    pthread_cleanup_push(cleanup, message);
 
     while (1) {
         printf("%s\n", message);
         sleep(1); 
     }
 
-    _pthread_cleanup_pop(1);
+    pthread_cleanup_pop(1);
 
     return NULL;
 }
