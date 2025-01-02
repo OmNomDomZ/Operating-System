@@ -1,11 +1,17 @@
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#include <pthread.h>
 #include <sched.h>
 
 #include "blocking-queue.h"
+
 
 #define RED "\033[41m"
 #define NOCOLOR "\033[0m"
@@ -29,19 +35,21 @@ void set_cpu(int n) {
 
 void *reader(void *arg) {
 	int expected = 0;
-	blocking_queue_t *q = (blocking_queue_t *)arg;
+	queue_t *q = (queue_t *)arg;
 	printf("reader [%d %d %d]\n", getpid(), getppid(), gettid());
 
-	set_cpu(2);
+	set_cpu(1);
 
 	while (1) {
 		int val = -1;
-		int ok = blocking_queue_get(q, &val);
-		if (!ok)
+		int ok = queue_get(q, &val);
+		if (!ok) {
 			continue;
+		}
 
-		if (expected != val)
+		if (expected != val) {
 			printf(RED"ERROR: get value is %d but expected - %d" NOCOLOR "\n", val, expected);
+		}
 
 		expected = val + 1;
 	}
@@ -51,16 +59,17 @@ void *reader(void *arg) {
 
 void *writer(void *arg) {
 	int i = 0;
-	blocking_queue_t *q = (blocking_queue_t *)arg;
+	queue_t *q = (queue_t *)arg;
 	printf("writer [%d %d %d]\n", getpid(), getppid(), gettid());
 
-	set_cpu(4);
+	set_cpu(1);
 
 	while (1) {
-        usleep(1);
-		int ok = blocking_queue_add(q, i);
-		if (!ok)
+		usleep(1);
+		int ok = queue_add(q, i);
+		if (!ok) {
 			continue;
+		}
 		i++;
 	}
 
@@ -69,12 +78,12 @@ void *writer(void *arg) {
 
 int main() {
 	pthread_t tid1, tid2;
-	blocking_queue_t *q;
+	queue_t *q;
 	int err;
 
 	printf("main [%d %d %d]\n", getpid(), getppid(), gettid());
 
-	q = blocking_queue_init(100);
+	q = queue_init(1000000);
 
 	err = pthread_create(&tid1, NULL, reader, q);
 	if (err) {
@@ -82,7 +91,7 @@ int main() {
 		return -1;
 	}
 
-//	sched_yield();
+	sched_yield();
 
 	err = pthread_create(&tid2, NULL, writer, q);
 	if (err) {
@@ -90,10 +99,10 @@ int main() {
 		return -1;
 	}
 
-    pthread_join(tid1, NULL);
+	pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
 
-    blocking_queue_destroy(&q);
+    queue_destroy(q);
 
 	return 0;
 }

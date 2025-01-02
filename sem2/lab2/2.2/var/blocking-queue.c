@@ -119,7 +119,7 @@ int blocking_queue_add(blocking_queue_t *q, int val) {
     q->count++;
     q->add_count++;
 
-    pthread_cond_broadcast(&q->not_empty);
+    pthread_cond_signal(&q->not_empty);
 
     pthread_mutex_unlock(&q->lock);
 

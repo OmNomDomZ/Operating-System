@@ -32,7 +32,7 @@ void *reader(void *arg) {
 	blocking_queue_t *q = (blocking_queue_t *)arg;
 	printf("reader [%d %d %d]\n", getpid(), getppid(), gettid());
 
-	set_cpu(3);
+	set_cpu(1);
 
 	while (1) {
 		int val = -1;
@@ -57,7 +57,7 @@ void *writer(void *arg) {
 	set_cpu(1);
 
 	while (1) {
-        usleep(1);
+        // usleep(1);
 		int ok = blocking_queue_add(q, i);
 		if (!ok)
 			continue;
@@ -82,7 +82,7 @@ int main() {
 		return -1;
 	}
 
-//	sched_yield();
+	sched_yield();
 
 	err = pthread_create(&tid2, NULL, writer, q);
 	if (err) {
