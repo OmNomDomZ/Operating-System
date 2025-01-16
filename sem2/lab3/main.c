@@ -97,8 +97,8 @@ int read_request(int client_socket, char *request) {
 // подключаемся к серверу
 int connect_to_remote(char *host) {
     struct addrinfo hints, *res0;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
     int status = getaddrinfo(host, "http", &hints, &res0);
@@ -107,7 +107,6 @@ int connect_to_remote(char *host) {
         return FAIL;
     }
 
-    // сокет для подключения к серверу
     int dest_socket = socket(res0->ai_family, res0->ai_socktype, res0->ai_protocol);
     if (dest_socket == FAIL) {
         logg("Error while creating remote server socket", RED);
@@ -133,8 +132,7 @@ void parse_request(char *request, char *parsed_request, char *host) {
         logg("Host header not found", RED);
         return;
     }
-
-    // Пропускаем host
+    // Пропускаем Host
     host_start += 6; 
     while (*host_start == ' ') host_start++;
 
@@ -145,7 +143,7 @@ void parse_request(char *request, char *parsed_request, char *host) {
     }
     host[i] = '\0';
 
-    // Копируем запрос
+    // Копируем весь запрос
     strcpy(parsed_request, request); 
 }
 
@@ -155,8 +153,19 @@ void *client_handler(void *arg) {
     int client_socket = ctx->client_socket;
     char *request = ctx->request;
 
+    // Игнорируем HTTPS 
+    if (strncmp(request, "CONNECT", 7) == 0) {
+        logg("Ignoring CONNECT request", YELLOW);
+        close(client_socket);
+        free(ctx->request);
+        free(ctx);
+        pthread_exit(NULL);
+    }
+
+    // HTTP
     char parsed_request[BUFFER_SIZE];
     char host[256];
+    memset(host, 0, sizeof(host));
     parse_request(request, parsed_request, host);
 
     logg_char("Remote server host name: ", host, GREEN);
@@ -165,6 +174,7 @@ void *client_handler(void *arg) {
     int dest_socket = connect_to_remote(host);
     if (dest_socket == FAIL) {
         close(client_socket);
+        free(ctx->request);
         free(ctx);
         pthread_exit(NULL);
     }
@@ -176,11 +186,12 @@ void *client_handler(void *arg) {
         logg("Error sending request to remote server", RED);
         close(client_socket);
         close(dest_socket);
+        free(ctx->request);
         free(ctx);
         pthread_exit(NULL);
     }
 
-    // ответ 
+    // пересылаем ответ обратно клиенту
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
     while ((bytes_read = recv(dest_socket, buffer, BUFFER_SIZE, 0)) > 0) {
@@ -189,6 +200,7 @@ void *client_handler(void *arg) {
 
     close(client_socket);
     close(dest_socket);
+    free(ctx->request);
     free(ctx);
     logg("Connection with client closed", BLUE);
     pthread_exit(NULL);
@@ -237,7 +249,7 @@ int main() {
             free(request);
             free(ctx);
         } else {
-            pthread_detach(thread_id);
+            pthread_detach(thread_id); // отделяем поток
         }
     }
 
