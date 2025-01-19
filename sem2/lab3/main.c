@@ -32,6 +32,97 @@ void sigint_handler(int signo) {
     }
 }
 
+int read_request_fully(int client_socket, char *request, size_t buf_size) {
+    size_t total_read = 0;
+
+    // Читаем в цикле конец заголовков HTTP
+    // В HTTP заголовок заканчивается \r\n\r\n
+    while (1) {
+        ssize_t bytes_read = read(client_socket, request + total_read, buf_size - total_read - 1);
+
+        if (bytes_read < 0) {
+            logg("Error while reading request", RED);
+            close(client_socket);
+            return EXIT_FAILURE;
+        }
+        if (bytes_read == 0) {
+            // Клиент закрыл соединение
+            logg("Connection closed from client", RED);
+            close(client_socket);
+            return EXIT_FAILURE;
+        }
+
+        total_read += bytes_read;
+        request[total_read] = '\0';
+
+        // конец заголовков
+        char *end_of_headers = strstr(request, "\r\n\r\n");
+        if (end_of_headers != NULL) {
+            logg("нашли конец заголовков, достаточно", YELLOW);
+            // нашли конец заголовков, достаточно
+            break;
+        }
+
+        // если буфер — выходим (можно расширить динамически)
+        if (total_read >= buf_size - 1) {
+            logg("Request too large for buffer", YELLOW);
+            break;
+        }
+    }
+
+    logg_char("Received request:\n", request, GREEN);
+    return EXIT_SUCCESS;
+}
+
+
+ssize_t send_all(int socket_fd, const char *buffer, size_t length) {
+    size_t total_sent = 0;
+    while (total_sent < length) {
+        ssize_t sent_now = send(socket_fd, buffer + total_sent,
+                                length - total_sent, 0);
+        if (sent_now < 0) {
+            return -1; // ошибка
+        }
+        total_sent += sent_now;
+    }
+
+    //  все запрошенные байты ушли в сокет
+    return (ssize_t)total_sent; 
+}
+
+// читает из сокета (src_fd) данные и пересылает их в другой сокет (dst_fd)
+void forward_data(int src_fd, int dst_fd) {
+    char buffer[BUFFER_SIZE];
+    while (1) {
+        ssize_t bytes_read = recv(src_fd, buffer, BUFFER_SIZE, 0);
+        if (bytes_read < 0) {
+            logg("Error receiving data", RED);
+            break;
+        }
+        if (bytes_read == 0) {
+            // источник закрыл соединение
+            break;
+        }
+
+        // отправляем, что прочитали, в dst_fd
+        size_t total_sent = 0;
+        while ((ssize_t)total_sent < bytes_read) {
+            ssize_t sent_now = send(dst_fd, buffer + total_sent, bytes_read - total_sent, 0);
+            if (sent_now < 0) {
+                logg("Error sending data", RED);
+                break;
+            }
+            total_sent += sent_now;
+        }
+
+        // внутри цикла произошла ошибка отправки
+        if (total_sent < (size_t)bytes_read) {
+            break;
+        }
+    }
+}
+
+
 // создание сокета 
 int create_server_socket() {
     struct sockaddr_in server_addr;
@@ -76,23 +167,23 @@ int create_server_socket() {
     return server_socket;
 }
 
-// читаем запрос
-int read_request(int client_socket, char *request) {
-    ssize_t bytes_read = read(client_socket, request, BUFFER_SIZE);
-    if (bytes_read < 0) {
-        logg("Error while reading request", RED);
-        close(client_socket);
-        return EXIT_FAILURE;
-    }
-    if (bytes_read == 0) {
-        logg("Connection closed from client", RED);
-        close(client_socket);
-        return EXIT_FAILURE;
-    }
-    request[bytes_read] = '\0';
-    logg_char("Received request:\n", request, GREEN);
-    return EXIT_SUCCESS;
-}
+// // читаем запрос
+// int read_request(int client_socket, char *request) {
+//     ssize_t bytes_read = read(client_socket, request, BUFFER_SIZE);
+//     if (bytes_read < 0) {
+//         logg("Error while reading request", RED);
+//         close(client_socket);
+//         return EXIT_FAILURE;
+//     }
+//     if (bytes_read == 0) {
+//         logg("Connection closed from client", RED);
+//         close(client_socket);
+//         return EXIT_FAILURE;
+//     }
+//     request[bytes_read] = '\0';
+//     logg_char("Received request:\n", request, GREEN);
+//     return EXIT_SUCCESS;
+// }
 
 // подключаемся к серверу
 int connect_to_remote(char *host) {
@@ -126,15 +217,20 @@ int connect_to_remote(char *host) {
     return dest_socket;
 }
 
+// Разбираем запрос чтобы узнать Host
 void parse_request(char *request, char *parsed_request, char *host) {
     char *host_start = strstr(request, "Host: ");
+
     if (!host_start) {
         logg("Host header not found", RED);
         return;
     }
     // Пропускаем Host
     host_start += 6; 
-    while (*host_start == ' ') host_start++;
+
+    while (*host_start == ' ') {
+        host_start++;
+    }
 
     int i = 0;
     while (host_start[i] != '\r' && host_start[i] != '\n' && host_start[i] != '\0') {
@@ -182,7 +278,8 @@ void *client_handler(void *arg) {
     logg("Connected to remote server", PURPLE);
 
     // отправляем запрос
-    if (send(dest_socket, parsed_request, strlen(parsed_request), 0) == FAIL) {
+    size_t req_len = strlen(parsed_request);
+    if (send_all(dest_socket, parsed_request, req_len) < 0) {
         logg("Error sending request to remote server", RED);
         close(client_socket);
         close(dest_socket);
@@ -192,11 +289,7 @@ void *client_handler(void *arg) {
     }
 
     // пересылаем ответ обратно клиенту
-    char buffer[BUFFER_SIZE];
-    ssize_t bytes_read;
-    while ((bytes_read = recv(dest_socket, buffer, BUFFER_SIZE, 0)) > 0) {
-        send(client_socket, buffer, bytes_read, 0);
-    }
+    forward_data(dest_socket, client_socket);
 
     close(client_socket);
     close(dest_socket);
@@ -233,7 +326,7 @@ int main() {
         logg("Accepted new client", GREEN);
 
         char *request = calloc(BUFFER_SIZE, sizeof(char));
-        if (read_request(client_socket, request) == EXIT_FAILURE) {
+        if (read_request_fully(client_socket, request, BUFFER_SIZE) == EXIT_FAILURE) {
             free(request);
             continue;
         }
